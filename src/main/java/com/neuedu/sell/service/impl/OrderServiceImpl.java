@@ -1,6 +1,7 @@
 package com.neuedu.sell.service.impl;
 
 
+import com.neuedu.sell.converter.OrderMaster2OrderDTOConverter;
 import com.neuedu.sell.dto.CarDTO;
 import com.neuedu.sell.dto.OrderDTO;
 import com.neuedu.sell.entity.OrderDetail;
@@ -15,13 +16,17 @@ import com.neuedu.sell.utils.KeyUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 
@@ -46,7 +51,7 @@ public class OrderServiceImpl implements OrderService {
         //生成订单主表id
         String orderId = KeyUtils.generateUniqueKey();
         //1.查询商品   前台不穿商品信息  所以需要我们去查询商品信息  我们根据商品id去查商品信息
-        for (OrderDetail orderDetail : orderDTO.getOrderDetails()) {
+        for (OrderDetail orderDetail : orderDTO.getOrderDetailList()) {
             ProductInfo productInfo =productInfoService.findOne(orderDetail.getProductId());
             if(productInfo == null){
                 //商品不存在时 抛出一个异常
@@ -81,7 +86,7 @@ public class OrderServiceImpl implements OrderService {
         //遍历OrderDetails集合get方法得到商品数量和id放到CarDTO的集合中去
          List<CarDTO> carDTOList = new ArrayList<>();
 
-         for (OrderDetail orderDetail : orderDTO.getOrderDetails()) {
+         for (OrderDetail orderDetail : orderDTO.getOrderDetailList()) {
              carDTOList.add(new CarDTO(orderDetail.getProductId(),orderDetail.getProductQuantity()));
         }
         productInfoService.decreaseStock(carDTOList);
@@ -89,13 +94,34 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderDTO findByOrderId(String orderId) {
-        return null;
+    public OrderDTO findOne(String orderId) {
+        // 根据订单id查询订单主表信息 可以用findOne的原因是 在订单主表是主键
+      OrderMaster orderMaster=orderMasterRepository.findOne(orderId);
+       if(orderMaster == null){
+           throw new SellException(ResultEnum.ORDER_NOT_EXIST);
+       }
+       //根据订单orderid查询订单详情表
+           List<OrderDetail> detailList=orderDetailRepository.findByOrderId(orderId);
+          //1.判断集合detailList号是否为空
+         if(detailList.size() == 0){
+            throw new SellException(ResultEnum.ORDERDETAIL_NOT_EXIST);
+         }
+        // 2. 查完主表和订单详情表   我们需要将两张表的信息复制到 orderDto 用于传输
+         OrderDTO orderDTO = OrderMaster2OrderDTOConverter.convert(orderMaster);
+         //  再将orderDetail的集合设置到orderDTO中去   给这个属性重新赋值
+        orderDTO.setOrderDetailList(detailList);
+        return orderDTO;
     }
 
     @Override
     public Page<OrderDTO> findList(String buyerOpenid, Pageable pageable) {
-        return null;
+        //我们根据opedid去查询订单主表信息 将订单信息已经存在了page中 因为我们需要分页
+        Page<OrderMaster> page = orderMasterRepository.findByBuyerOpenid(buyerOpenid,pageable);
+        // 此时我们需要将OrderMaster的集合转化成OrderDTO的集合  因为方法的返回值 是orderDTO
+     List<OrderDTO> orderDTOList=OrderMaster2OrderDTOConverter.convert(page.getContent());
+     //  我们再将我们orderDTOList 集合放入 Page<OrderDTO>集合在中去
+   Page<OrderDTO> dtoPage = new PageImpl<>(orderDTOList,pageable,page.getTotalElements());
+        return dtoPage;
     }
 
     @Override

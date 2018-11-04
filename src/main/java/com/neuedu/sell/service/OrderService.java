@@ -17,11 +17,11 @@ public interface OrderService {
     OrderDTO create(OrderDTO orderDTO);
 
     /**
-     * 根据订单编号查询单个订单
+     * 根据订单编号查询单个订单详情
      * @param orderId
      * @return
      */
-    OrderDTO findByOrderId(String orderId);
+    OrderDTO findOne(String orderId);
 
 
     /**

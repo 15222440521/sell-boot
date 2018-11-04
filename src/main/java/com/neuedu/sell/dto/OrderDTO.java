@@ -37,9 +37,6 @@ public class OrderDTO {
     private  Date updateTime;
 
     //详情的集合   关联此表
-    private List<OrderDetail> orderDetails;
-
-
-
+    private List<OrderDetail> orderDetailList;
 
 }
