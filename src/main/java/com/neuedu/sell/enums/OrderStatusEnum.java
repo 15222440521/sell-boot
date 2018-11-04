@@ -8,7 +8,8 @@ public enum OrderStatusEnum {
 
 
    NEW(0,"新下单"),
-   FINISHED(1,"已完成");
+   FINISHED(1,"已完成"),
+   CANCELED(2,"已取消");
 
     private Integer code;
     private String msg;

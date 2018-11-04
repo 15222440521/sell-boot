@@ -7,10 +7,13 @@ import com.neuedu.sell.dto.OrderDTO;
 import com.neuedu.sell.entity.OrderDetail;
 import com.neuedu.sell.entity.OrderMaster;
 import com.neuedu.sell.entity.ProductInfo;
+import com.neuedu.sell.enums.OrderStatusEnum;
+import com.neuedu.sell.enums.PayStatusEnum;
 import com.neuedu.sell.enums.ResultEnum;
 import com.neuedu.sell.exception.SellException;
 import com.neuedu.sell.repository.OrderDetailRepository;
 import com.neuedu.sell.repository.OrderMasterRepository;
+import com.neuedu.sell.repository.ProductInfoRepository;
 import com.neuedu.sell.service.OrderService;
 import com.neuedu.sell.utils.KeyUtils;
 import org.springframework.beans.BeanUtils;
@@ -23,10 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.sql.Connection;
+
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 
@@ -42,6 +43,8 @@ public class OrderServiceImpl implements OrderService {
      //注入业务层的实现类
      @Autowired
      private ProductInfoServiceImpl productInfoService;
+     // 引入 商品信息的实现类
+    /* private ProductInfoRepository productInfoRepository;*/
 
     @Override
     @Transactional
@@ -85,7 +88,6 @@ public class OrderServiceImpl implements OrderService {
         //5.扣库存   （一旦生成订单  我们必须要减少库存） 传入的 参数是个 订单详情的集合
         //遍历OrderDetails集合get方法得到商品数量和id放到CarDTO的集合中去
          List<CarDTO> carDTOList = new ArrayList<>();
-
          for (OrderDetail orderDetail : orderDTO.getOrderDetailList()) {
              carDTOList.add(new CarDTO(orderDetail.getProductId(),orderDetail.getProductQuantity()));
         }
@@ -125,17 +127,63 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional   //  加个事物控制   取消订单成功了 返回库存也不能事变  事物的原子性
     public OrderDTO cancel(OrderDTO orderDTO) {
-        return null;
+        //  将orderDTO转化成OrderMaster 需要我们去根据传过来的orderDTO的树去查询数据库
+        OrderMaster orderMaster = orderMasterRepository.findOne(orderDTO.getOrderId());
+        //1.判断订单状态  一旦不是新下单的订单都是不可取消的订单 抛出一个不合法的订单异常
+      if(!orderMaster.getOrderStatus().equals(OrderStatusEnum.NEW.getCode())){
+          throw new SellException(ResultEnum.ORDER_STATUS_ERROR);
+      }
+        // 2.修改订单状态  给订单主表设置订单状态
+        orderMaster.setOrderStatus(OrderStatusEnum.CANCELED.getCode());
+        //  将修改后的订单主表在数据库中更新  更新的时候 首先他会根据orderId主键去查询 该商品的信息
+        orderMasterRepository.save(orderMaster);
+        // 3.返还库存量
+        List<CarDTO> carDTOList  =  new ArrayList<>();
+        //  我们根据orderId去查询orderDetail的集合
+ List<OrderDetail> orderDetailList = orderDetailRepository.findByOrderId(orderMaster.getOrderId());
+        for (OrderDetail orderDetail : orderDetailList) {
+            //  要获取前台穿过来订单详情中 的商品id 和 购买数量
+            // 用一个集合去接收他  购物车的对象的集合
+     carDTOList.add(new CarDTO(orderDetail.getProductId(),orderDetail.getProductQuantity()));
+        }
+        //  调用业务层的增加库存方法
+         productInfoService.increaseStock(carDTOList);
+        // 4.如果已支付则进行退款业务   支付业务还没有完成
+
+        return orderDTO;
     }
 
     @Override
     public OrderDTO finish(OrderDTO orderDTO) {
-        return null;
+        // 1.从数据库中查询出订单信息
+        OrderMaster orderMaster = orderMasterRepository.findOne(orderDTO.getOrderId());
+        // 2.判断订单状态   只要订单状态不是新下单状态就需要完成订单
+        if(!orderMaster.getOrderStatus().equals(OrderStatusEnum.NEW.getCode())){
+            throw new SellException(ResultEnum.ORDER_STATUS_ERROR);
+        }
+        //3.修改订单状态
+        orderMaster.setOrderStatus(OrderStatusEnum.FINISHED.getCode());
+        //4 . 订单存入数据库
+          orderMasterRepository.save(orderMaster);
+          //  不需要事物控制的操作 是因为他只做了一个数据库的操作 不会违反事物
+        //  一旦抛出异常  下面根本不会执行到保存成功
+        return orderDTO;
     }
 
     @Override
     public OrderDTO paid(OrderDTO orderDTO) {
-        return null;
+        // 1.从数据库中查询出订单信息
+        OrderMaster orderMaster = orderMasterRepository.findOne(orderDTO.getOrderId());
+        // 2.判断支付状态    只要支付状态是支付完成的状态就需要就需要改
+         if(orderMaster.getPayStatus().equals(PayStatusEnum.PAID.getCode())){
+             throw new SellException(ResultEnum.PAY_STATUS_ERROR);
+         }
+        //3.修改支付状态
+        orderMaster.setPayStatus(PayStatusEnum.PAID.getCode());
+        //4 . 订单存入数据库
+        orderMasterRepository.save(orderMaster);
+        return orderDTO;
     }
 }

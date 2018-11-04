@@ -2,6 +2,8 @@ package com.neuedu.sell.service.impl;
 
 import com.neuedu.sell.dto.OrderDTO;
 import com.neuedu.sell.entity.OrderDetail;
+import com.neuedu.sell.enums.OrderStatusEnum;
+import com.neuedu.sell.enums.ResultEnum;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +25,7 @@ public class OrderServiceImplTest {
    private OrderServiceImpl orderService;
     @Test
     public void  createTest(){
-        //看前台传过来的有哪些参数
+        //看前台传过来的有哪些参数  首先是用户姓名 他是根据openid去查询的然后 再去传递订单主表信息
      OrderDTO orderDTO = new OrderDTO();
      orderDTO.setBuyerName("张三");
      orderDTO.setBuyerPhone("1333333333");
@@ -52,8 +54,31 @@ public class OrderServiceImplTest {
              System.out.println(orderDTO);
          }
     }
-
-
+   // 测试取消订单
+    @Test
+    public void cancelTest(){
+        OrderDTO orderDTO = new OrderDTO();
+        orderDTO.setOrderId("1541160475943358272");
+        //   还有一个订单详情表的集合 这是用户提交的是订单详情
+        List<OrderDetail> list = new ArrayList<>();
+        list.add(new OrderDetail("1",2));
+        list.add(new OrderDetail("2",5));
+        //    将list集合  包装到orderdpo中为了我们可以实现与前台的传输
+        orderDTO.setOrderDetailList(list);
+        orderService.cancel(orderDTO);
+    }
+    @Test
+    public void finishedTest(){
+        OrderDTO orderDTO = new OrderDTO();
+        orderDTO.setOrderId("1541160475943358272");
+        orderService.finish(orderDTO);
+    }
+    @Test
+    public void paidTest(){
+      OrderDTO orderDTO = new OrderDTO();
+      orderDTO.setOrderId("1541160475943358272");
+      orderService.paid(orderDTO);
+    }
 
 
 }

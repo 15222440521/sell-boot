@@ -64,4 +64,24 @@ public class ProductInfoServiceImpl implements ProductInfoService {
 
 
     }
+
+    @Override
+    public void increaseStock(List<CarDTO> carDTOList) {
+        for (CarDTO carDTO : carDTOList) {
+            // 根据商品id去查询
+            ProductInfo productInfo = productInfoRepository.findOne(carDTO.getProductId());
+            if(productInfo == null){
+                //商品不存在时 抛出一个异常
+                throw new SellException(ResultEnum.PRODUCT_NOT_EXIST);
+            }
+            //判断商品数量是否合法？
+            if(carDTO.getProductQuantity() <= 0) {
+                //抛出一个异常  去结果枚举类中 定义一个 这样的异常
+                throw  new SellException(ResultEnum.Quantity_NOT_LEAGAL);
+            }
+            //增加库存
+            productInfo.setProductStock(productInfo.getProductStock() + carDTO.getProductQuantity());
+            productInfoRepository.save(productInfo);
+        }
+    }
 }

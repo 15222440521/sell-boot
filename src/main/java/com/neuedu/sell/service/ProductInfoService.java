@@ -42,5 +42,11 @@ public interface ProductInfoService {
      */
     void decreaseStock(List<CarDTO> carDTOList);
 
+    /**
+     * 增加库存
+     * @param carDTOList
+     */
+    void increaseStock(List<CarDTO> carDTOList);
+
 
 }

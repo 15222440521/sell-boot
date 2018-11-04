@@ -29,7 +29,7 @@ public class OrderMaster {
     private String buyerOpenid;
     //订单总金额
     private BigDecimal orderAmount;
-     //订单状态  默认是新下单 0为新下单  1为未支付 在枚举中已经定义
+     //订单状态  默认是新下单 0为新下单  1为已完成 在枚举 orderStatusEnum中已经定义
     private Integer orderStatus = OrderStatusEnum.NEW.getCode();
 
     //支付状态  默认未支付  0是未支付  1是已支付
